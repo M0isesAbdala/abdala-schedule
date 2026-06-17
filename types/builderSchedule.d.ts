@@ -3,7 +3,7 @@ export declare const DAYS_OF_WEEK: ScheduleDays[];
 export type CreateEvent = {
     time: ScheduleEventTime;
     events: ScheduleEventsUnion[];
-    timoutEvent: NodeJS.Timeout;
+    timeoutEvent: NodeJS.Timeout;
 };
 export type NextWeekDay = {
     time: number;
