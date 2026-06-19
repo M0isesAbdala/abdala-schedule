@@ -1,40 +1,56 @@
-import type { CreateScheduleEvent, CreateScheduleEventParameter, Schedule, ScheduleDays, ScheduleEventOpenClose, ScheduleEventOpenCloseParametersDays, ScheduleEventOpenCloseTimerParameter, ScheduleEvents } from "../Schedule";
+import type { CreateScheduleEvent, CreateScheduleEventCallbackParameter, CreateScheduleEventParameter, Schedule, ScheduleDays, ScheduleEventOpenClose, ScheduleEventOpenCloseParametersDays, ScheduleEventOpenCloseTimerParameter, ScheduleEvents } from "../Schedule";
 import { createEvent, DAYS_OF_WEEK, getFirstDayWeek, scheduleEventTimeToDate, type NextWeekDay, type ScheduleCache } from "../builderSchedule";
 
 export default function handleOpenCloseEvent(schedule: ScheduleCache, event: ScheduleEvents<'OPEN_CLOSE'>): ScheduleEvents<"OPEN_CLOSE"> {
     const NOW: Date = new Date();
 
-    if (event.parameter.isOpen) {
+    if (event.parameter.type === 'DAYS') {
 
-        if (event.parameter.type === 'DAYS') {
-            const WEEK_DAY = testAndFindWeekDay(NOW, event.parameter.timer.days, 'timeClose');
-            event.parameter.timer.indexDay = WEEK_DAY.day;
-            createEvent(NOW, WEEK_DAY.data, schedule, event);
-        } else if (event.parameter.type === 'NORMAL') {
-            const PARSED_DATE: Date = scheduleEventTimeToDate(NOW, event.parameter.timer.timeClose);
-            if (NOW > PARSED_DATE) {
-                PARSED_DATE.setDate(PARSED_DATE.getDate() + 1);
-            }
-            createEvent(NOW, PARSED_DATE, schedule, event);
+        const WEEK_DAY_OPEN = testAndFindWeekDay(NOW, event.parameter.timer.days, 'timeOpen');
+        const WEEK_DAY_CLOSE = testAndFindWeekDay(NOW, event.parameter.timer.days, 'timeClose');
+
+        if (NOW.getDay() === WEEK_DAY_OPEN.data.getDay()) {
+            event.parameter.isOpen = true;
+            event.parameter.timer.indexDay = WEEK_DAY_CLOSE.day;
+            createEvent(NOW, WEEK_DAY_CLOSE.data, schedule, event);
+            event.cb(event);
+        } else if (NOW.getDay() === WEEK_DAY_CLOSE.data.getDay()) {
+            event.parameter.isOpen = false;
+            const WEEK_DAY_OPEN = testAndFindWeekDay(NOW, event.parameter.timer.days, 'timeOpen');
+            event.parameter.timer.indexDay = WEEK_DAY_OPEN.day;
+            createEvent(NOW, WEEK_DAY_OPEN.data, schedule, event);
+        } else {
+            event.parameter.isOpen = false;
+            event.parameter.timer.indexDay = WEEK_DAY_CLOSE.day;
+            createEvent(NOW, WEEK_DAY_OPEN.data, schedule, event);
         }
 
-    } else {
+    } else if (event.parameter.type === 'NORMAL') {
+        const TIME_OPEN: Date = scheduleEventTimeToDate(NOW, event.parameter.timer.timeOpen);
+        const TIME_CLOSE: Date = scheduleEventTimeToDate(NOW, event.parameter.timer.timeClose);
 
-        if (event.parameter.type === 'DAYS') {
-            const WEEK_DAY = testAndFindWeekDay(NOW, event.parameter.timer.days, 'timeOpen');
-            event.parameter.timer.indexDay = WEEK_DAY.day;
-            createEvent(NOW, WEEK_DAY.data, schedule, event);
-        } else if (event.parameter.type === 'NORMAL') {
-            const PARSED_DATE: Date = scheduleEventTimeToDate(NOW, event.parameter.timer.timeOpen);
-            if (NOW > PARSED_DATE) {
-                PARSED_DATE.setDate(PARSED_DATE.getDate() + 1);
+        if (NOW > TIME_OPEN && !event.parameter.isOpen) {
+            event.parameter.isOpen = true;
+            if (NOW > TIME_CLOSE) {
+                TIME_CLOSE.setDate(TIME_CLOSE.getDate() + 1);
             }
-            createEvent(NOW, PARSED_DATE, schedule, event);
+            createEvent(NOW, TIME_CLOSE, schedule, event);
+            event.cb(event);
+        } else if (NOW > TIME_CLOSE && event.parameter.isOpen) {
+            event.parameter.isOpen = false;
+            if (NOW > TIME_OPEN) {
+                TIME_OPEN.setDate(TIME_OPEN.getDate() + 1);
+            }
+            createEvent(NOW, TIME_OPEN, schedule, event);
+        } else {
+            event.parameter.isOpen = false;
+            if (NOW > TIME_OPEN) {
+                TIME_OPEN.setDate(TIME_OPEN.getDate() + 1);
+            }
+            createEvent(NOW, TIME_OPEN, schedule, event);
         }
 
     }
-
-    event.parameter.isOpen = !event.parameter.isOpen;
 
     return event;
 }
@@ -70,7 +86,7 @@ function testAndFindWeekDay(now: Date, parameters: ScheduleEventOpenCloseParamet
     };
 }
 
-export const createOpenCloseDaysEvent: CreateScheduleEvent<'OPEN_CLOSE', ScheduleEventOpenCloseParametersDays> = (days: ScheduleEventOpenCloseParametersDays, cb: (param: ScheduleEvents<'OPEN_CLOSE'>) => void): CreateScheduleEventParameter<'OPEN_CLOSE'> | null => {
+export const createOpenCloseDaysEvent: CreateScheduleEvent<'OPEN_CLOSE', ScheduleEventOpenCloseParametersDays> = (days: ScheduleEventOpenCloseParametersDays, cb: (param: CreateScheduleEventCallbackParameter<'OPEN_CLOSE'>) => void): CreateScheduleEventParameter<'OPEN_CLOSE'> | null => {
 
     if (Object.keys(days).length === 0) {
         return null;
@@ -102,7 +118,7 @@ export const createOpenCloseDaysEvent: CreateScheduleEvent<'OPEN_CLOSE', Schedul
     }
 }
 
-export const createOpenCloseEvent: CreateScheduleEvent<'OPEN_CLOSE', ScheduleEventOpenCloseTimerParameter> = (timer: ScheduleEventOpenCloseTimerParameter, cb: (param: ScheduleEvents<'OPEN_CLOSE'>) => void): CreateScheduleEventParameter<'OPEN_CLOSE'> | null => {
+export const createOpenCloseEvent: CreateScheduleEvent<'OPEN_CLOSE', ScheduleEventOpenCloseTimerParameter> = (timer: ScheduleEventOpenCloseTimerParameter, cb: (param: CreateScheduleEventCallbackParameter<'OPEN_CLOSE'>) => void): CreateScheduleEventParameter<'OPEN_CLOSE'> | null => {
 
     return {
         event: {

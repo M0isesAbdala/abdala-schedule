@@ -41,12 +41,12 @@ export type ScheduleEventOpenCloseParameterUnion = ScheduleEventOpenCloseParamet
 export type ScheduleEventOpenClose = ScheduleEventOpenCloseParameterUnion;
 export type ClientScheduleEvents<T extends ScheduleEventType> = {
     type: T;
-    cb: CreateScheduleEventCallback<T>;
     parameter: T extends 'OPEN_CLOSE' ? ScheduleEventOpenClose : T extends 'REPEAT' ? ScheduleEventRepeatUnion : ScheduleEventOnce;
 };
 export type ClientScheduleEventsUnion = ClientScheduleEvents<'ONCE'> | ClientScheduleEvents<'OPEN_CLOSE'> | ClientScheduleEvents<'REPEAT'>;
 export type ScheduleEvents<T extends ScheduleEventType> = ClientScheduleEvents<T> & {
     id: number;
+    cb: CreateScheduleEventCallback<T>;
 };
 export type ScheduleEventsUnion = ScheduleEvents<'ONCE'> | ScheduleEvents<'OPEN_CLOSE'> | ScheduleEvents<'REPEAT'>;
 export type ScheduleEvent = {
@@ -59,9 +59,10 @@ export type Schedule = {
 };
 export type ScheduleEventType = 'ONCE' | 'REPEAT' | 'OPEN_CLOSE';
 export type ScheduleDays = 'SUN' | 'MON' | 'TUE' | 'WED' | 'THU' | 'FRI' | 'SAT';
-export type CreateScheduleEventCallback<T extends ScheduleEventType> = (args: ScheduleEvents<T>) => void;
+export type CreateScheduleEventCallbackParameter<T extends ScheduleEventType> = Omit<ScheduleEvents<T>, 'cb'>;
+export type CreateScheduleEventCallback<T extends ScheduleEventType> = (args: CreateScheduleEventCallbackParameter<T>) => void;
 export type CreateScheduleEventParameter<T extends ScheduleEventType> = {
-    event: ClientScheduleEvents<T>;
+    event: Omit<ScheduleEvents<T>, 'id'>;
 };
 export type CreateScheduleEventParameterUnion = CreateScheduleEventParameter<'ONCE'> | CreateScheduleEventParameter<'OPEN_CLOSE'> | CreateScheduleEventParameter<'REPEAT'>;
 export type CreateScheduleEvent<T extends ScheduleEventType, K> = (parameter: K, cb: CreateScheduleEventCallback<T>) => CreateScheduleEventParameter<T> | null;

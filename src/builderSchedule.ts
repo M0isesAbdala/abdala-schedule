@@ -87,9 +87,8 @@ export function createSchedule(): CreateSchedule {
                     const EVENT: ScheduleEventsUnion | undefined = EVENTS.events[index];
                     if (EVENT !== undefined) {
                         if (EVENT.type === 'OPEN_CLOSE') {
-                            if (EVENT.parameter.isOpen) {
-                                EVENT.cb(EVENT);
-                            }
+                            EVENT.parameter.isOpen = false;
+                            EVENT.cb(EVENT);
                         }
                     }
                 }
@@ -140,13 +139,13 @@ export function createEvent(now: Date, time: Date, schedule: ScheduleCache, even
                 const EVENT: ScheduleEventsUnion | undefined = EVENTS[index];
                 if (EVENT !== undefined) {
                     if (EVENT.type === 'OPEN_CLOSE') {
-                        EVENT.cb(EVENT);
                         EVENTS[index] = handleOpenCloseEvent(schedule, EVENT);
+                        EVENT.cb(EVENT);
                     } else if (EVENT.type === 'ONCE') {
                         EVENT.cb(EVENT);
                     } else if (EVENT.type === 'REPEAT') {
-                        EVENT.cb(EVENT);
                         EVENTS[index] = handleRepeatEvent(schedule, EVENT);
+                        EVENT.cb(EVENT);
                     }
                 }
             }

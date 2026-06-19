@@ -1,4 +1,4 @@
-import type { CreateScheduleEvent, CreateScheduleEventParameter, Schedule, ScheduleEventOnce, ScheduleEvents, ScheduleEventTime } from "../Schedule";
+import type { CreateScheduleEvent, CreateScheduleEventCallbackParameter, CreateScheduleEventParameter, Schedule, ScheduleEventOnce, ScheduleEvents, ScheduleEventTime } from "../Schedule";
 import { createEvent, scheduleEventTimeToDate, type ScheduleCache } from "../builderSchedule";
 
 export function handleOnceEvent(schedule: ScheduleCache, event: ScheduleEvents<"ONCE">): ScheduleEvents<"ONCE"> {
@@ -12,7 +12,7 @@ export function handleOnceEvent(schedule: ScheduleCache, event: ScheduleEvents<"
     return event;
 }
 
-export const createOnceEvent: CreateScheduleEvent<'ONCE', ScheduleEventTime> = (time: ScheduleEventTime, cb: (param: ScheduleEvents<'ONCE'>) => void): CreateScheduleEventParameter<'ONCE'> | null => {
+export const createOnceEvent: CreateScheduleEvent<'ONCE', ScheduleEventTime> = (time: ScheduleEventTime, cb: (param: CreateScheduleEventCallbackParameter<'ONCE'>) => void): CreateScheduleEventParameter<'ONCE'> | null => {
     const NOW: Date = new Date();
 
     const D: Date = scheduleEventTimeToDate(NOW, time);

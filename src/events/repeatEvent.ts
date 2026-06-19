@@ -1,4 +1,4 @@
-import type { CreateScheduleEvent, CreateScheduleEventParameter, Schedule, ScheduleDays, ScheduleEventRepeatParameterDays, ScheduleEventRepeatUnion, ScheduleEvents, ScheduleEventTime } from "../Schedule"
+import type { CreateScheduleEvent, CreateScheduleEventCallbackParameter, CreateScheduleEventParameter, Schedule, ScheduleDays, ScheduleEventRepeatParameterDays, ScheduleEventRepeatUnion, ScheduleEvents, ScheduleEventTime } from "../Schedule"
 import { createEvent, DAYS_OF_WEEK, scheduleEventTimeToDate, type CreateEvent, type NextWeekDay, type ScheduleCache } from "../builderSchedule";
 
 export default function handleRepeatEvent(schedule: ScheduleCache, event: ScheduleEvents<'REPEAT'>): ScheduleEvents<"REPEAT"> {
@@ -90,7 +90,7 @@ function testAndFindWeekDay(now: Date, parameters: ScheduleEventRepeatParameterD
     };
 }
 
-export const createRepeatDaysEvent: CreateScheduleEvent<'REPEAT', ScheduleEventRepeatParameterDays> = (days: ScheduleEventRepeatParameterDays, cb: (param: ScheduleEvents<'REPEAT'>) => void): CreateScheduleEventParameter<'REPEAT'> | null => {
+export const createRepeatDaysEvent: CreateScheduleEvent<'REPEAT', ScheduleEventRepeatParameterDays> = (days: ScheduleEventRepeatParameterDays, cb: (param: CreateScheduleEventCallbackParameter<'REPEAT'>) => void): CreateScheduleEventParameter<'REPEAT'> | null => {
 
     if (Object.keys(days).length === 0) {
         return null;
@@ -112,7 +112,7 @@ export const createRepeatDaysEvent: CreateScheduleEvent<'REPEAT', ScheduleEventR
     }
 }
 
-export const createRepeatHourEvent: CreateScheduleEvent<'REPEAT', ScheduleEventTime[]> = (timer: ScheduleEventTime[], cb: (param: ScheduleEvents<'REPEAT'>) => void): CreateScheduleEventParameter<'REPEAT'> | null => {
+export const createRepeatHourEvent: CreateScheduleEvent<'REPEAT', ScheduleEventTime[]> = (timer: ScheduleEventTime[], cb: (param: CreateScheduleEventCallbackParameter<'REPEAT'>) => void): CreateScheduleEventParameter<'REPEAT'> | null => {
 
     if (timer.length === 0) {
         return null;
