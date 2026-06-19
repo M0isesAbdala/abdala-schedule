@@ -5,7 +5,8 @@
       "ESNext",
     ],
     "types": [
-      "node"
+      "node",
+      "bun"
     ],
     "target": "ESNext",
     "module": "Preserve",

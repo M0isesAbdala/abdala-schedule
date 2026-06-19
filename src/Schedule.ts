@@ -103,3 +103,12 @@ export type CreateSchedule = {
     listEvents: () => ScheduleListEvent[];
     gracefulShutdown: () => void;
 }
+
+export interface Clock {
+    now(): Date;
+}
+
+export interface TimerProvider {
+    setTimeout(fn: () => void, ms: number): NodeJS.Timeout;
+    clearTimeout(id: NodeJS.Timeout): void;
+}

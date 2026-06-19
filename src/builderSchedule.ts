@@ -1,4 +1,4 @@
-import type { CreateSchedule, CreateScheduleEventParameterUnion, Schedule, ScheduleDays, ScheduleEventsUnion, ScheduleEventTime, ScheduleListEvent } from "./Schedule";
+import type { Clock, CreateSchedule, CreateScheduleEventParameterUnion, Schedule, ScheduleDays, ScheduleEventsUnion, ScheduleEventTime, ScheduleListEvent, TimerProvider } from "./Schedule";
 import handleRepeatEvent from "./events/repeatEvent";
 import { handleOnceEvent } from "./events/onceEvent";
 import handleOpenCloseEvent from "./events/openCloseEvent";
@@ -18,7 +18,13 @@ export type NextWeekDay = {
 
 export type ScheduleCache = Map<Date, Schedule>;
 
-export function createSchedule(): CreateSchedule {
+export function createSchedule(deps?: { clock?: Clock; timer?: TimerProvider }): CreateSchedule {
+    const clock: Clock = deps?.clock ?? { now: () => new Date() };
+    const timer: TimerProvider = deps?.timer ?? {
+        setTimeout: (fn, ms) => setTimeout(fn, ms),
+        clearTimeout: (id) => clearTimeout(id),
+    };
+
     const SCHEDULE: ScheduleCache = new Map<Date, Schedule>();
     let count: number = 0;
 
@@ -35,11 +41,11 @@ export function createSchedule(): CreateSchedule {
         }
 
         if (eventWithId.type === 'ONCE') {
-            eventWithId = handleOnceEvent(SCHEDULE, eventWithId);
+            eventWithId = handleOnceEvent(SCHEDULE, eventWithId, clock, timer);
         } else if (eventWithId.type === 'OPEN_CLOSE') {
-            eventWithId = handleOpenCloseEvent(SCHEDULE, eventWithId);
+            eventWithId = handleOpenCloseEvent(SCHEDULE, eventWithId, clock, timer);
         } else if (eventWithId.type === 'REPEAT') {
-            eventWithId = handleRepeatEvent(SCHEDULE, eventWithId);
+            eventWithId = handleRepeatEvent(SCHEDULE, eventWithId, clock, timer);
         }
 
         return eventWithId;
@@ -56,6 +62,7 @@ export function createSchedule(): CreateSchedule {
                         if (EVENT.id === id) {
                             if (EVENT.type === 'OPEN_CLOSE') {
                                 if (EVENT.parameter.isOpen) {
+                                    EVENT.parameter.isOpen = false;
                                     EVENT.cb(EVENT);
                                 }
                             }
@@ -66,7 +73,7 @@ export function createSchedule(): CreateSchedule {
                 }
 
                 if (NEW_EVENTS.length === 0) {
-                    clearTimeout(EVENTS.eventTimeout);
+                    timer.clearTimeout(EVENTS.eventTimeout);
                     SCHEDULE.delete(KEY);
                     return;
                 }
@@ -92,7 +99,7 @@ export function createSchedule(): CreateSchedule {
                         }
                     }
                 }
-                clearTimeout(EVENTS.eventTimeout);
+                timer.clearTimeout(EVENTS.eventTimeout);
                 SCHEDULE.delete(KEY);
             }
         }
@@ -128,28 +135,28 @@ export function createSchedule(): CreateSchedule {
     }
 };
 
-export function createEvent(now: Date, time: Date, schedule: ScheduleCache, event: ScheduleEventsUnion): void {
+export function createEvent(now: Date, time: Date, schedule: ScheduleCache, event: ScheduleEventsUnion, clock: Clock, timerProvider: TimerProvider): void {
 
     if (schedule.has(time)) {
         schedule.get(time)?.events.push(event);
     } else {
         const EVENTS: ScheduleEventsUnion[] = [event];
-        const TIMEOUT_EVENT: NodeJS.Timeout = setTimeout(() => {
+        const TIMEOUT_EVENT: NodeJS.Timeout = timerProvider.setTimeout(() => {
             for (let index = 0; index < EVENTS.length; index++) {
                 const EVENT: ScheduleEventsUnion | undefined = EVENTS[index];
                 if (EVENT !== undefined) {
                     if (EVENT.type === 'OPEN_CLOSE') {
-                        EVENTS[index] = handleOpenCloseEvent(schedule, EVENT);
+                        EVENTS[index] = handleOpenCloseEvent(schedule, EVENT, clock, timerProvider, true);
                         EVENT.cb(EVENT);
                     } else if (EVENT.type === 'ONCE') {
                         EVENT.cb(EVENT);
                     } else if (EVENT.type === 'REPEAT') {
-                        EVENTS[index] = handleRepeatEvent(schedule, EVENT);
+                        EVENTS[index] = handleRepeatEvent(schedule, EVENT, clock, timerProvider);
                         EVENT.cb(EVENT);
                     }
                 }
             }
-            clearTimeout(TIMEOUT_EVENT);
+            timerProvider.clearTimeout(TIMEOUT_EVENT);
             schedule.delete(time);
         }, convertToMillis(now, time));
 

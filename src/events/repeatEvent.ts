@@ -1,19 +1,19 @@
-import type { CreateScheduleEvent, CreateScheduleEventCallbackParameter, CreateScheduleEventParameter, Schedule, ScheduleDays, ScheduleEventRepeatParameterDays, ScheduleEventRepeatUnion, ScheduleEvents, ScheduleEventTime } from "../Schedule"
-import { createEvent, DAYS_OF_WEEK, scheduleEventTimeToDate, type CreateEvent, type NextWeekDay, type ScheduleCache } from "../builderSchedule";
+import type { Clock, CreateScheduleEvent, CreateScheduleEventCallbackParameter, CreateScheduleEventParameter, ScheduleDays, ScheduleEventRepeatParameterDays, ScheduleEventRepeatUnion, ScheduleEvents, ScheduleEventTime, TimerProvider } from "../Schedule"
+import { createEvent, DAYS_OF_WEEK, scheduleEventTimeToDate, type ScheduleCache } from "../builderSchedule";
 
-export default function handleRepeatEvent(schedule: ScheduleCache, event: ScheduleEvents<'REPEAT'>): ScheduleEvents<"REPEAT"> {
-    const NOW: Date = new Date();
+export default function handleRepeatEvent(schedule: ScheduleCache, event: ScheduleEvents<'REPEAT'>, clock: Clock, timer: TimerProvider): ScheduleEvents<"REPEAT"> {
+    const NOW: Date = clock.now();
     if (event.parameter.type === 'DAYS') {
         const WEEK_DAY = testAndFindWeekDay(NOW, event.parameter.timer.days);
         event.parameter.timer.indexDay = WEEK_DAY.day;
-        createEvent(NOW, WEEK_DAY.data, schedule, event);
+        createEvent(NOW, WEEK_DAY.data, schedule, event, clock, timer);
         return event;
     } else if (event.parameter.type === 'NORMAL') {
         let lessDate: Date = new Date(NOW);
         const HOURS = testDate(NOW, lessDate, event.parameter.timer);
         if (HOURS.flag) {
             event.parameter.indexTime = HOURS.index;
-            createEvent(NOW, HOURS.parsedDate, schedule, event);
+            createEvent(NOW, HOURS.parsedDate, schedule, event, clock, timer);
             return event;
         }
 
@@ -29,7 +29,7 @@ export default function handleRepeatEvent(schedule: ScheduleCache, event: Schedu
             }
         }
 
-        createEvent(NOW, lessDate, schedule, event);
+        createEvent(NOW, lessDate, schedule, event, clock, timer);
     }
 
     return event;
@@ -49,7 +49,7 @@ function testDate(now: Date, parsedDate: Date, parameters: ScheduleEventTime[]) 
         const TIMER: ScheduleEventTime | undefined = parameters[i];
         if (TIMER !== undefined) {
             const PARSE_DATA: Date = scheduleEventTimeToDate(now, TIMER);
-            if (now < PARSE_DATA && PARSE_DATA < parsedDate) {
+            if (now < PARSE_DATA && (!RET.flag || PARSE_DATA < RET.parsedDate)) {
                 RET.flag = true;
                 RET.index = i;
                 RET.parsedDate = PARSE_DATA;
@@ -60,34 +60,32 @@ function testDate(now: Date, parsedDate: Date, parameters: ScheduleEventTime[]) 
 }
 
 function testAndFindWeekDay(now: Date, parameters: ScheduleEventRepeatParameterDays): { data: Date, day: ScheduleDays } {
-    let index = 0;
-    let parsedDate: Date = new Date(now);
-    let currentIndex: number = now.getDay();
-
-    while (index < 8) {
-
-        if (currentIndex === DAYS_OF_WEEK.length) {
-            currentIndex = 0;
-        }
-
-        const DAY: ScheduleDays = DAYS_OF_WEEK[currentIndex] as ScheduleDays;
-        if (parameters[DAY] !== undefined) {
-            const TEST = testDate(now, parsedDate, parameters[DAY]);
-            parsedDate.setDate(parsedDate.getDate() + index);
-            if (TEST.flag) {
-                parsedDate = TEST.parsedDate;
-                break;
+    for (let daysAhead = 0; daysAhead < 8; daysAhead++) {
+        const candidate = new Date(now);
+        candidate.setDate(now.getDate() + daysAhead);
+        const DAY: ScheduleDays = DAYS_OF_WEEK[candidate.getDay()] as ScheduleDays;
+        const slots = parameters[DAY];
+        if (slots !== undefined) {
+            let minDate: Date | null = null;
+            for (let i = 0; i < slots.length; i++) {
+                const slot = slots[i];
+                if (slot !== undefined) {
+                    const slotDate = scheduleEventTimeToDate(candidate, slot);
+                    if (now < slotDate && (minDate === null || slotDate < minDate)) {
+                        minDate = slotDate;
+                    }
+                }
+            }
+            if (minDate !== null) {
+                return { data: minDate, day: DAY };
             }
         }
-
-        currentIndex++;
-        index++;
     }
 
-    return {
-        data: parsedDate,
-        day: DAYS_OF_WEEK[currentIndex] as ScheduleDays
-    };
+    const fallbackDay: ScheduleDays = (Object.keys(parameters) as ScheduleDays[])[0] ?? (DAYS_OF_WEEK[now.getDay()] as ScheduleDays);
+    const fallback = new Date(now);
+    fallback.setDate(now.getDate() + 7);
+    return { data: fallback, day: fallbackDay };
 }
 
 export const createRepeatDaysEvent: CreateScheduleEvent<'REPEAT', ScheduleEventRepeatParameterDays> = (days: ScheduleEventRepeatParameterDays, cb: (param: CreateScheduleEventCallbackParameter<'REPEAT'>) => void): CreateScheduleEventParameter<'REPEAT'> | null => {
